@@ -7,6 +7,7 @@ import os
 
 # Firebase Admin + Firestore (uses Cloud Run service account automatically)
 import firebase_admin
+from firebase_admin import app_check
 from firebase_admin import auth as fb_auth
 from google.cloud import firestore
 
@@ -56,9 +57,18 @@ def parse_docx(p: str) -> str:
     doc = Document(p)
     return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
 
+def verify_app_check_token(app_check_token: str | None):
+    if not app_check_token:
+        raise HTTPException(status_code=401, detail="Missing App Check token")
+    try:
+        app_check.verify_token(app_check_token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid App Check token")
+
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...), authorization: str | None = Header(default=None)):
     uid = verify_firebase_token(authorization)
+    verify_app_check_token(x_firebase_appcheck)
 
     # NOTE: Phase 1: no quota yet; that comes in Phase 2.
 
