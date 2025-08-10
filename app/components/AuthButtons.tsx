@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { auth, signInWithGoogle, signOutUser } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 export default function AuthButtons() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, setUser);

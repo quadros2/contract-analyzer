@@ -2,37 +2,52 @@
 import { useState } from "react";
 import { auth } from "@/lib/firebase";
 
+interface AnalysisResponse {
+  user: string;
+  filename: string;
+  chars: number;
+  preview: string;
+}
+
+type ErrorResponse = { detail?: string };
+
 export default function Uploader() {
-  const [res, setRes] = useState<any>(null);
+  const [res, setRes] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    const f = e.target.files?.[0];
+    if (!f) return;
+
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) {
+      setError("Please sign in first.");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("file", f);
+    setLoading(true);
+
     try {
-      setError(null);
-      const f = e.target.files?.[0];
-      if (!f) return;
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) {
-        setError("Please sign in first.");
-        return;
-      }
-      const fd = new FormData();
-      fd.append("file", f);
-      setLoading(true);
       const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analyze`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: fd
+        body: fd,
       });
-      const j = await r.json();
+
       if (!r.ok) {
-        setError(j?.detail || "Upload failed");
-      } else {
-        setRes(j);
+        const errBody: ErrorResponse = await r.json().catch(() => ({}));
+        throw new Error(errBody.detail ?? "Upload failed");
       }
-    } catch (e: any) {
-      setError(e?.message || "Something went wrong");
+
+      const data: AnalysisResponse = await r.json();
+      setRes(data);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      setError(msg);
     } finally {
       setLoading(false);
     }
